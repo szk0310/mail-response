@@ -6,7 +6,6 @@ from typing import Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -14,29 +13,42 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 
 def get_gmail_service():
+    import json as _json
+
     token_path = os.getenv("GMAIL_TOKEN_PATH", "../credentials/token.json")
-    credentials_path = os.getenv("GMAIL_CREDENTIALS_PATH", "../credentials/credentials.json")
+    token_json_str = os.getenv("GMAIL_TOKEN_JSON", "")
 
     creds: Optional[Credentials] = None
 
-    if os.path.exists(token_path):
-        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+    # 1. 環境変数からトークンを読み込む（Render環境）
+    if token_json_str:
+        try:
+            creds = Credentials.from_authorized_user_info(_json.loads(token_json_str), SCOPES)
+            print("[gmail] GMAIL_TOKEN_JSON 環境変数からトークンを読み込みました")
+        except Exception as e:
+            print(f"[gmail] GMAIL_TOKEN_JSON パース失敗: {e}")
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+    # 2. ファイルからトークンを読み込む（ローカル開発）
+    if not creds and os.path.exists(token_path):
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+        print(f"[gmail] ファイルからトークンを読み込みました: {token_path}")
+
+    if not creds:
+        raise RuntimeError("Gmail トークンが見つかりません。GMAIL_TOKEN_JSON 環境変数または token.json を設定してください。")
+
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            # token.json を更新（Cloud Run では書き込み失敗しても続行）
-            try:
-                with open(token_path, "w") as token_file:
-                    token_file.write(creds.to_json())
-            except OSError:
-                pass
+            print("[gmail] トークンをリフレッシュしました")
+            # ローカル環境のみファイルに保存
+            if not token_json_str:
+                try:
+                    with open(token_path, "w") as f:
+                        f.write(creds.to_json())
+                except OSError:
+                    pass
         else:
-            # Cloud Run 環境ではブラウザ認証不可 → 事前に token.json を用意すること
-            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-            creds = flow.run_local_server(port=0)
-            with open(token_path, "w") as token_file:
-                token_file.write(creds.to_json())
+            raise RuntimeError("Gmail トークンが無効です。token.json を再生成してください。")
 
     return build("gmail", "v1", credentials=creds)
 
