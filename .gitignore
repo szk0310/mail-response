@@ -1,0 +1,18 @@
+# Credentials (never commit)
+credentials/
+
+# Backend
+backend/.env
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/venv/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.production
+
+# System
+.DS_Store

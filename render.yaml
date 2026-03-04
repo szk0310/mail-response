@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: shiro-email-agent-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: singapore
+    plan: free
+    envVars:
+      - key: GMAIL_ADDRESS
+        value: suzuki@shiro-k.jp
+      - key: PROCESSED_LABEL_NAME
+        value: AI-Draft-Created
+      - key: FIREBASE_PROJECT_ID
+        value: shiro-k
+      - key: GMAIL_TOKEN_PATH
+        value: /etc/secrets/token.json
+      - key: SERVICE_ACCOUNT_PATH
+        value: /etc/secrets/service-account.json
+      # 以下は Render ダッシュボードで手動設定
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
