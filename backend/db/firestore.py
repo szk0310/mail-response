@@ -1,7 +1,5 @@
-import base64
 import json
 import os
-import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -15,17 +13,15 @@ _client: Optional[Client] = None
 
 
 def _build_credentials() -> credentials.Base:
-    # 1. Base64エンコードされたJSON（Render環境変数）
-    sa_json_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON_B64", "")
-    if sa_json_b64:
+    # 1. Raw JSON文字列（Render環境変数: FIREBASE_SERVICE_ACCOUNT_JSON）
+    sa_json_str = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
+    if sa_json_str:
         try:
-            # base64以外の文字（改行・Unicodeなど）を除去してからデコード
-            clean = re.sub(r'[^A-Za-z0-9+/=]', '', sa_json_b64)
-            sa_dict = json.loads(base64.b64decode(clean).decode("utf-8"))
-            print("[firestore] Base64環境変数でサービスアカウント認証します")
+            sa_dict = json.loads(sa_json_str)
+            print("[firestore] JSON環境変数でサービスアカウント認証します")
             return credentials.Certificate(sa_dict)
         except Exception as e:
-            print(f"[firestore] Base64デコード失敗: {e}")
+            print(f"[firestore] JSON環境変数のパース失敗: {e}")
 
     # 2. サービスアカウントJSONファイル（ローカル開発・Secret Files）
     sa_path = os.getenv("SERVICE_ACCOUNT_PATH", "")
