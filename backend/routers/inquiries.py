@@ -105,7 +105,12 @@ async def get_inquiries(
     inquiry_type: Optional[str] = Query(None, description="フィルター: service_pricing / quote_request / existing_client"),
     limit: int = Query(50, ge=1, le=200),
 ) -> list[InquiryResponse]:
-    return await list_inquiries(status=status, inquiry_type=inquiry_type, limit=limit)
+    try:
+        return await list_inquiries(status=status, inquiry_type=inquiry_type, limit=limit)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Firestore エラー: {type(e).__name__}: {e}")
 
 
 @router.get("/inquiries/{inquiry_id}", response_model=InquiryResponse, summary="問い合わせ詳細")

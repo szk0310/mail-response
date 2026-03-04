@@ -19,16 +19,22 @@ def get_firestore_client() -> Client:
     service_account_path = os.getenv("SERVICE_ACCOUNT_PATH", "")
     project_id = os.getenv("FIREBASE_PROJECT_ID", "shiro-k")
 
+    print(f"[firestore] SERVICE_ACCOUNT_PATH={service_account_path!r}")
+    print(f"[firestore] FIREBASE_PROJECT_ID={project_id!r}")
+
     if not firebase_admin._apps:
         if service_account_path and os.path.exists(service_account_path):
-            # ローカル開発: サービスアカウントJSONを使用
+            print("[firestore] サービスアカウントJSONで認証します")
             cred = credentials.Certificate(service_account_path)
         else:
-            # Cloud Run: Application Default Credentials を使用
+            if service_account_path:
+                print(f"[firestore] 警告: ファイルが見つかりません: {service_account_path}")
+            print("[firestore] Application Default Credentials で認証します")
             cred = credentials.ApplicationDefault()
         firebase_admin.initialize_app(cred, {"projectId": project_id})
 
     _client = firestore.client()
+    print("[firestore] Firestoreクライアント初期化完了")
     return _client
 
 
