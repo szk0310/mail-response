@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
 import { useInquiriesStore } from '../stores/inquiries'
-import type { InquiryStatus } from '../types/inquiry'
 import { INQUIRY_TYPE_LABELS } from '../types/inquiry'
 import StatusBadge from './StatusBadge.vue'
 
