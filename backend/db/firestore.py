@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -13,6 +14,29 @@ from schemas.inquiry import InquiryCreate, InquiryResponse, InquiryStatus, Inqui
 _client: Optional[Client] = None
 
 
+def _build_credentials() -> credentials.Base:
+    # 1. Base64エンコードされたJSON（Render環境変数）
+    sa_json_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON_B64", "")
+    if sa_json_b64:
+        try:
+            # base64以外の文字（改行・Unicodeなど）を除去してからデコード
+            clean = re.sub(r'[^A-Za-z0-9+/=]', '', sa_json_b64)
+            sa_dict = json.loads(base64.b64decode(clean).decode("utf-8"))
+            print("[firestore] Base64環境変数でサービスアカウント認証します")
+            return credentials.Certificate(sa_dict)
+        except Exception as e:
+            print(f"[firestore] Base64デコード失敗: {e}")
+
+    # 2. サービスアカウントJSONファイル（ローカル開発・Secret Files）
+    sa_path = os.getenv("SERVICE_ACCOUNT_PATH", "")
+    if sa_path and os.path.exists(sa_path):
+        print(f"[firestore] ファイルでサービスアカウント認証します: {sa_path}")
+        return credentials.Certificate(sa_path)
+
+    print("[firestore] ADCにフォールバックします")
+    return credentials.ApplicationDefault()
+
+
 def get_firestore_client() -> Client:
     global _client
     if _client is not None:
@@ -21,22 +45,7 @@ def get_firestore_client() -> Client:
     project_id = os.getenv("FIREBASE_PROJECT_ID", "shiro-k")
 
     if not firebase_admin._apps:
-        # 1. Base64エンコードされたJSON（Render環境変数）
-        sa_json_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON_B64", "")
-        # 2. サービスアカウントJSONファイル（ローカル開発）
-        sa_path = os.getenv("SERVICE_ACCOUNT_PATH", "")
-
-        if sa_json_b64:
-            print("[firestore] Base64環境変数でサービスアカウント認証します")
-            sa_dict = json.loads(base64.b64decode(sa_json_b64).decode("utf-8"))
-            cred = credentials.Certificate(sa_dict)
-        elif sa_path and os.path.exists(sa_path):
-            print(f"[firestore] ファイルでサービスアカウント認証します: {sa_path}")
-            cred = credentials.Certificate(sa_path)
-        else:
-            print("[firestore] ADC認証にフォールバックします")
-            cred = credentials.ApplicationDefault()
-
+        cred = _build_credentials()
         firebase_admin.initialize_app(cred, {"projectId": project_id})
 
     _client = firestore.client()
